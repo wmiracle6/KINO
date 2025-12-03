@@ -1,4 +1,5 @@
 import sys
+import logging
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QPushButton, QLabel, QFrame
@@ -149,12 +150,15 @@ class DropdownMenu(QFrame):
         for name, btn in self.buttons.items():
             if name == self.current_active:
                 pixmap = QPixmap(btn.img_active)
+                img_path = btn.img_active
             else:
                 pixmap = QPixmap(btn.img_normal)
+                img_path = btn.img_normal
             
             if not pixmap.isNull():
                 btn.setIcon(QIcon(pixmap))
             else:
+                logging.warning(f"Failed to load image for '{name}': {img_path} (file may be missing, corrupted, or path is incorrect)")
                 btn.setText(name) # Fallback если картинка не найдена
 
 
