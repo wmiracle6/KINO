@@ -3,18 +3,17 @@ from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QPushButton, QLabel, QFrame
 )
-from PyQt6.QtGui import QPainter, QColor, QPen
-from PyQt6.QtCore import Qt, QRect, QPropertyAnimation, QEasingCurve, pyqtProperty
+from PyQt6.QtGui import QPainter, QColor, QPen, QIcon, QPixmap
+from PyQt6.QtCore import Qt, QRect, QPropertyAnimation, QEasingCurve, pyqtProperty, QSize
 
 class MenuButton(QPushButton):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setFixedSize(60, 60)
-        self.setStyleSheet("")
+        self.setStyleSheet("border: none;")
         self._rotation = 0
         self.is_open = False
         self.menu = None  # ссылка на выпадающее меню
-        self.size_anim = None
 
     def paintEvent(self, event):
         painter = QPainter(self)
@@ -55,12 +54,6 @@ class MenuButton(QPushButton):
         self.update()
     rotation = pyqtProperty(int, getRotation, setRotation)
 
-    def getHeight(self):
-        return self.height()
-    def setHeight(self, h):
-        self.setFixedSize(60, h)
-    anim_height = pyqtProperty(int, getHeight, setHeight)
-
     def toggle(self):
         self.anim = QPropertyAnimation(self, b"rotation")
         self.anim.setDuration(300)
@@ -92,23 +85,9 @@ class MenuButton(QPushButton):
         self.menu.show()
         self.menu.raise_()
 
-        # Анимация увеличения высоты кнопки
-        self.size_anim = QPropertyAnimation(self, b"anim_height")
-        self.size_anim.setDuration(300)
-        self.size_anim.setEasingCurve(QEasingCurve.Type.OutCubic)
-        self.size_anim.setStartValue(60)
-        self.size_anim.setEndValue(210)  # 60 + 150
-        self.size_anim.start()
-
     def hide_menu(self):
         if self.menu:
             self.menu.hide()
-        self.size_anim = QPropertyAnimation(self, b"anim_height")
-        self.size_anim.setDuration(250)
-        self.size_anim.setEasingCurve(QEasingCurve.Type.InCubic)
-        self.size_anim.setStartValue(self.height())
-        self.size_anim.setEndValue(60)
-        self.size_anim.start()
 
 
 class DropdownMenu(QFrame):
@@ -117,31 +96,66 @@ class DropdownMenu(QFrame):
         super().__init__(parent_button)
         self.parent_button = parent_button
         self.setFixedWidth(60)
-        self.setFixedHeight(150)
+        # Высота зависит от количества кнопок, примерно 3 кнопки * 60px
+        self.setFixedHeight(190)
         self.setStyleSheet("""
             QFrame {
                 background-color: transparent;
             }
             QPushButton {
-                background-color: #274690;
-                color: #F5F3F5;
+                background-color: transparent;
+                border: none;
                 border-radius: 6px;
-                font-family: 'Inter';
-                font-size: 14px;
-                padding: 8px;
-                margin: 4px;
-                min-height: 36px;
             }
-            QPushButton#active { background-color: #FF5353; }
         """)
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(4, 6, 4, 6)
-        layout.setSpacing(4)
-        for name in ["Афиша", "Акции", "Профиль"]:
-            btn = QPushButton(name)
-            if name == "Афиша":
-                btn.setObjectName("active")
+        layout.setContentsMargins(0, 10, 0, 0)
+        layout.setSpacing(5)
+
+        self.buttons = {}
+        self.current_active = "Афиша"
+
+        # Настройка кнопок с изображениями
+        # (Название, Обычная картинка, Картинка при выборе)
+        items = [
+            ("Афиша", "img/Афиша.png", "img/Афиша выбрана.png"),
+            ("Акции", "img/Акции.png", "img/Акция выбрана.png"),
+            ("Профиль", "img/Профиль.png", "img/Профиль выбран.png")
+        ]
+
+        for name, img_normal, img_active in items:
+            btn = QPushButton()
+            btn.setFixedSize(60, 50)
+            btn.setIconSize(QSize(50, 50))
+            
+            # Сохраняем пути к картинкам в объекте кнопки
+            btn.img_normal = img_normal
+            btn.img_active = img_active
+            btn.name = name
+            
+            btn.clicked.connect(lambda checked, n=name: self.set_active(n))
+            
             layout.addWidget(btn)
+            self.buttons[name] = btn
+
+        # Устанавливаем начальное состояние
+        self.update_icons()
+
+    def set_active(self, name):
+        self.current_active = name
+        self.update_icons()
+
+    def update_icons(self):
+        for name, btn in self.buttons.items():
+            if name == self.current_active:
+                pixmap = QPixmap(btn.img_active)
+            else:
+                pixmap = QPixmap(btn.img_normal)
+            
+            if not pixmap.isNull():
+                btn.setIcon(QIcon(pixmap))
+            else:
+                btn.setText(name) # Fallback если картинка не найдена
 
 
 class MainWindow(QMainWindow):
